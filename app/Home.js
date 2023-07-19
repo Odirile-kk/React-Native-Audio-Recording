@@ -114,6 +114,16 @@ export default function App() {
     }
   }
 
+  const playRecording = async (uri) => {
+    try {
+      const soundObject = new Audio.Sound();
+      await soundObject.loadAsync({ uri });
+      await soundObject.playAsync();
+    } catch (error) {
+      console.error('Failed to play recording', error);
+    }
+  };
+
   useEffect(() => {
     saveRecordings();
   }, [recordings]);
@@ -128,17 +138,29 @@ export default function App() {
       </View>
     </View>
   );
- 
 
-  const playRecording = async (uri) => {
-    try {
-      const soundObject = new Audio.Sound();
-      await soundObject.loadAsync({ uri });
-      await soundObject.playAsync();
-    } catch (error) {
-      console.error('Failed to play recording', error);
-    }
-  };
+  
+
+//if there's no recordings yet, render this screen  
+  if (recordings.length === 0) {
+    return (
+      <View style={styles.containerEmpty}>
+      <Text>Let's get started!</Text>
+      <Text>Record your first audio by tapping the start button </Text>
+        <TouchableOpacity
+        style={styles.buttonEmpty}
+        onPress={recording ? stopRecording : startRecording}
+      >
+        <Text style={styles.buttonTextEmpty}>
+          {recording ? 'Stop Recording' : 'Start'}
+        </Text>
+      </TouchableOpacity>
+        {/* <View>
+          <IconButton icon="location-exit" onPress={handleSignOut} />
+        </View> */}
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -175,15 +197,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
+  containerEmpty: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: 'white'
+  },
   button: {
     backgroundColor: 'pink',
     padding: 10,
     borderRadius: 5,
     marginBottom: 20,
   },
+  buttonEmpty: {
+    backgroundColor: 'pink',
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 20,
+    marginTop: 50,
+  },
   buttonText: {
     color: 'white',
     fontSize: 16,
+  },
+  buttonTextEmpty: {
+    color: 'white',
+    fontSize: 25,
   },
   listContainer: {
     flexGrow: 1,
