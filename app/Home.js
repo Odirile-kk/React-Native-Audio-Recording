@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, FlatList, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, View, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { IconButton } from 'react-native-paper';
 import { Audio } from 'expo-av';
-import { auth } from '../firebase-auth';
+import { auth } from './firebase/firebase-auth';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -11,6 +11,7 @@ export default function App() {
   const [recording, setRecording] = useState(null);
   const [recordings, setRecordings] = useState([]);
   const [user, setUser] = useState(null);
+  const [isLoading, setLoading] = useState(false);
   const nav = useNavigation();
 
   useEffect(() => {
@@ -23,9 +24,9 @@ export default function App() {
         setUser(user);
       } else {
         setUser(null);
+        console.log('we are signing out')
       }
     });
-
     return () => unsubscribe();
   }, []);
 
@@ -37,7 +38,6 @@ export default function App() {
           allowsRecordingIOS: true,
           playsInSilentModeIOS: true,
         });
-
         return;
       }
 
@@ -88,6 +88,7 @@ export default function App() {
       if (recordingsData) {
         const data = JSON.parse(recordingsData);
         setRecordings(data);
+        setLoading(false)
       }
     } catch (error) {
       console.error('Failed to fetch recordings', error);
@@ -106,6 +107,7 @@ export default function App() {
     try {
       await signOut(auth);
       setUser(null);
+      console.log('User signed out in');
       nav.navigate('Login');
     } catch (error) {
       console.error('Error signing out:', error);
@@ -126,6 +128,7 @@ export default function App() {
       </View>
     </View>
   );
+ 
 
   const playRecording = async (uri) => {
     try {
@@ -148,12 +151,16 @@ export default function App() {
         </Text>
       </TouchableOpacity>
 
-      <FlatList
-        data={recordings}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={styles.listContainer}
-      />
+      {isLoading ? (
+        <ActivityIndicator style={styles.activityIndicator} size="large" color="blue" />
+      ) : (
+        <FlatList
+          data={recordings}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={styles.listContainer}
+        />
+      )}
       <View>
         <IconButton icon="location-exit" onPress={handleSignOut} />
       </View>
@@ -169,7 +176,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   button: {
-    backgroundColor: 'blue',
+    backgroundColor: 'pink',
     padding: 10,
     borderRadius: 5,
     marginBottom: 20,
@@ -188,5 +195,23 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: 'lightgray',
+  },
+  startRecordingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  startRecordingText: {
+    fontSize: 20,
+    marginBottom: 10,
+  },
+  startButton: {
+    backgroundColor: 'pink',
+    padding: 10,
+    borderRadius: 5,
+  },
+  startButtonText: {
+    color: 'white',
+    fontSize: 16,
   },
 });

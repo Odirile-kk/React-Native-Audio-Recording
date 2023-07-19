@@ -2,10 +2,9 @@
 import { KeyboardAvoidingView, StyleSheet, Text, TouchableOpacity, View, ImageBackground } from 'react-native'
 import React, { useState } from 'react'
 import { TextInput } from 'react-native-gesture-handler'
-import { auth } from '../firebase-auth';
+import { auth } from './firebase/firebase-auth';
 import { createUserWithEmailAndPassword } from 'firebase/auth'
 import { useNavigation } from 'expo-router';
-import {pic} from './assets/milad-fakurian-PGdW_bHDbpI-unsplash.jpg'
 
 
 const Register = () => {
@@ -55,6 +54,7 @@ const Register = () => {
         <TouchableOpacity onPress={handleSignUp} style={styles.buttonContainer}>
           <Text style={styles.buttonReg}>Register</Text>
         </TouchableOpacity>
+
         <TouchableOpacity onPress={onPress} style={styles.buttonOutline}>
           <Text style={styles.buttonLog}>Login</Text>
         </TouchableOpacity>
@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   buttonContainer: {
-    width: '60%',
+    width: '100%',
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 40,

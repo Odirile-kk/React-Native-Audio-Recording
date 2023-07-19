@@ -2,7 +2,7 @@ import { useNavigation } from 'expo-router';
 import { KeyboardAvoidingView, StyleSheet, Text, TouchableOpacity, View, ImageBackground } from 'react-native'
 import React, { useEffect, useState } from 'react'
 import { TextInput } from 'react-native-gesture-handler'
-import { auth } from '../firebase-auth';
+import { auth } from './firebase/firebase-auth';
 import { signInWithEmailAndPassword } from 'firebase/auth'
 
 
@@ -48,7 +48,7 @@ const Login = () => {
 
       <View>
         <TouchableOpacity onPress={handleSignIn} style={styles.buttonContainer}>
-          <Text style={styles.button}>Login</Text>
+          <Text style={styles.buttonLog }>Login</Text>
         </TouchableOpacity>
         <Text style={styles.text}>Not registered?</Text>
         <TouchableOpacity onPress={register} >
@@ -80,12 +80,9 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   buttonContainer: {
-    width: '50%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 40,
+    marginTop: 5,
   },
-  button: {
+  buttonLog: {
     backgroundColor: 'pink',
     width: '100%',
     padding: 15,
@@ -102,5 +99,9 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 400,
     paddingBottom: 20
+  },
+  Text: {
+    justifyContent: 'center',
+    alignItems: 'center'
   }
 })
