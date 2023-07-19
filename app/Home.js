@@ -1,17 +1,22 @@
-import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useState } from "react";
-import { Button, StyleSheet, Text, View } from "react-native";
-import { Audio } from "expo-av";
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, Text, View, FlatList, TouchableOpacity } from 'react-native';
+import { IconButton } from "react-native-paper";
+import { Audio } from 'expo-av';
+import axios from 'axios';
 import { auth } from "../firebase-auth";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { useNavigation } from '@react-navigation/native';
 
+
 export default function App() {
-  const [recording, setRecording] = useState();
+  const [recording, setRecording] = useState(null);
   const [recordings, setRecordings] = useState([]);
-  const [message, setMessage] = useState("");
   const [user, setUser] = useState(null);
   const nav = useNavigation();
+
+  useEffect(() => {
+    fetchRecordings();
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -25,45 +30,71 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-
-  async function startRecording() {
+  const startRecording = async () => {
     try {
-      const permission = await Audio.requestPermissionsAsync();
-
-      if (permission.status === "granted") {
+      const { status } = await Audio.requestPermissionsAsync();
+      if (status !== 'granted') {
         await Audio.setAudioModeAsync({
           allowsRecordingIOS: true,
-          playsInSilentModeIOS: true,
+          playsInSilentModeIOS: true
         });
-
-        const { recording } = await Audio.Recording.createAsync(
-          Audio.RECORDING_OPTIONS_PRESET_HIGH_QUALITY
-        );
-
-        setRecording(recording);
-      } else {
-        setMessage(
-          "Please grant permission to the app to access the microphone"
-        );
+        
+        return;
       }
-    } catch (err) {
-      console.error("Failed to start recording", err);
+
+      const newRecording = new Audio.Recording();
+      await newRecording.prepareToRecordAsync(Audio.RECORDING_OPTIONS_PRESET_HIGH_QUALITY);
+      await newRecording.startAsync();
+
+      setRecording(newRecording);
+    } catch (error) {
+      console.error('Failed to start recording', error);
     }
-  }
+  };
 
-  async function stopRecording() {
-    setRecording(undefined);
-    await recording.stopAndUnloadAsync();
+  const stopRecording = async () => {
+    try {
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      const response = await axios.post('http://localhost:3000/recordings', { uri });
+      const savedRecording = response.data;
+      setRecordings([...recordings, savedRecording]);
 
-    let updatedRecordings = [...recordings];
-    const { sound, status } = await recording.createNewLoadedSoundAsync();
-    updatedRecordings.push({
-      sound: sound,
-      file: recording.getURI(),
-    });
+      setRecording(null);
+    } catch (error) {
+      console.error('Failed to stop recording', error);
+    }
+  };
 
-    setRecordings(updatedRecordings);
-  }
+  const pauseRecording = async () => {
+    try {
+      if (recording) {
+        await recording.pauseAsync();
+      }
+    } catch (error) {
+      console.error('Failed to pause recording', error);
+    }
+  };
+
+
+  const deleteRecording = async (id) => {
+    try {
+      await axios.delete(`http://localhost:3000/recordings/${id}`);
+      setRecordings(recordings.filter((recording) => recording.id !== id));
+    } catch (error) {
+      console.error('Failed to delete recording', error);
+    }
+  };
+
+  const fetchRecordings = async () => {
+    try {
+      const response = await axios.get('http://localhost:3000/recordings');
+      const data = response.data;
+      setRecordings(data);
+    } catch (error) {
+      console.error('Failed to fetch recordings', error);
+    }
+  };
 
   async function handleSignOut() {
     try {
@@ -75,36 +106,42 @@ export default function App() {
     }
   }
 
-  function fetchRecording() {
-    return recordings.map((recordingLine, index) => {
-      return (
-        <View key={index} style={styles.listContainer}>
-          <Text style={styles.recordingItem}>
-            Audio {index + 1} - {recordingLine.duration}
-          </Text>
-          <Button
-            onPress={() => recordingLine.sound.replayAsync()}
-            title="Play"
-          />
-          <Button
-            onPress={() => recordingLine.sound.pauseAsync()}
-            title="Pause"
-          />
-        </View>
-      );
-    });
-  }
+  const renderItem = ({ item }) => (
+    <View style={styles.recordingItem}>
+    <Text>{`Audio-Recording${item.id}                            `}</Text>
+      <View style={{flexDirection: 'row', alignItems: 'center'}}>
+      <IconButton icon="play" onPress={() => playRecording(item.uri)}/>
+      <IconButton icon="pause" onPress={pauseRecording}/>
+      <IconButton icon="delete" onPress={() => deleteRecording(item.uri)}/>
+      </View>
+    </View>
+  );
+
+  const playRecording = async (uri) => {
+    try {
+      const soundObject = new Audio.Sound();
+      await soundObject.loadAsync({ uri });
+      await soundObject.playAsync();
+    } catch (error) {
+      console.error('Failed to play recording', error);
+    }
+  };
 
   return (
     <View style={styles.container}>
-          <Button onPress={handleSignOut} title="Logout" />
-          <Button
-            title={recording ? "Stop Recording" : "Start Recording"}
-            onPress={recording ? stopRecording : startRecording}
-          />
-          {fetchRecording()}
-
-      <StatusBar style="auto" />
+      <TouchableOpacity style={styles.button} onPress={recording ? stopRecording : startRecording}>
+        <Text style={styles.buttonText}>{recording ? 'Stop Recording' : 'Start Recording'}</Text>
+      </TouchableOpacity>
+      
+      <FlatList
+        data={recordings}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id.toString()}
+        contentContainerStyle={styles.listContainer}
+      />
+      <View>
+      <IconButton icon="location-exit" onPress={handleSignOut}/>
+      </View>
     </View>
   );
 }
@@ -112,18 +149,29 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: "center",
-    padding: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  button: {
+    backgroundColor: 'blue',
+    padding: 10,
+    borderRadius: 5,
+    marginBottom: 20,
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
   },
   listContainer: {
     flexGrow: 1,
   },
   recordingItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "lightgray",
+    borderBottomColor: 'lightgray',
   },
 });
