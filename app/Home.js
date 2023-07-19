@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, FlatList, TouchableOpacity } from 'react-native';
-import { IconButton } from "react-native-paper";
+import { IconButton } from 'react-native-paper';
 import { Audio } from 'expo-av';
-import axios from 'axios';
-import { auth } from "../firebase-auth";
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import { auth } from '../firebase-auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { useNavigation } from '@react-navigation/native';
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function App() {
   const [recording, setRecording] = useState(null);
@@ -36,9 +35,9 @@ export default function App() {
       if (status !== 'granted') {
         await Audio.setAudioModeAsync({
           allowsRecordingIOS: true,
-          playsInSilentModeIOS: true
+          playsInSilentModeIOS: true,
         });
-        
+
         return;
       }
 
@@ -56,8 +55,7 @@ export default function App() {
     try {
       await recording.stopAndUnloadAsync();
       const uri = recording.getURI();
-      const response = await axios.post('http://localhost:3000/recordings', { uri });
-      const savedRecording = response.data;
+      const savedRecording = { id: Date.now(), uri };
       setRecordings([...recordings, savedRecording]);
 
       setRecording(null);
@@ -76,10 +74,8 @@ export default function App() {
     }
   };
 
-
   const deleteRecording = async (id) => {
     try {
-      await axios.delete(`http://localhost:3000/recordings/${id}`);
       setRecordings(recordings.filter((recording) => recording.id !== id));
     } catch (error) {
       console.error('Failed to delete recording', error);
@@ -88,11 +84,21 @@ export default function App() {
 
   const fetchRecordings = async () => {
     try {
-      const response = await axios.get('http://localhost:3000/recordings');
-      const data = response.data;
-      setRecordings(data);
+      const recordingsData = await AsyncStorage.getItem('recordings');
+      if (recordingsData) {
+        const data = JSON.parse(recordingsData);
+        setRecordings(data);
+      }
     } catch (error) {
       console.error('Failed to fetch recordings', error);
+    }
+  };
+
+  const saveRecordings = async () => {
+    try {
+      await AsyncStorage.setItem('recordings', JSON.stringify(recordings));
+    } catch (error) {
+      console.error('Failed to save recordings', error);
     }
   };
 
@@ -102,17 +108,21 @@ export default function App() {
       setUser(null);
       nav.navigate('Login');
     } catch (error) {
-      console.error("Error signing out:", error);
+      console.error('Error signing out:', error);
     }
   }
 
+  useEffect(() => {
+    saveRecordings();
+  }, [recordings]);
+
   const renderItem = ({ item }) => (
     <View style={styles.recordingItem}>
-    <Text>{`Audio-Recording${item.id}                            `}</Text>
-      <View style={{flexDirection: 'row', alignItems: 'center'}}>
-      <IconButton icon="play" onPress={() => playRecording(item.uri)}/>
-      <IconButton icon="pause" onPress={pauseRecording}/>
-      <IconButton icon="delete" onPress={() => deleteRecording(item.uri)}/>
+      <Text>{`Audio-Recording${item.id}                            `}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <IconButton icon="play" onPress={() => playRecording(item.uri)} />
+        <IconButton icon="pause" onPress={pauseRecording} />
+        <IconButton icon="delete" onPress={() => deleteRecording(item.id)} />
       </View>
     </View>
   );
@@ -129,10 +139,15 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.button} onPress={recording ? stopRecording : startRecording}>
-        <Text style={styles.buttonText}>{recording ? 'Stop Recording' : 'Start Recording'}</Text>
+      <TouchableOpacity
+        style={styles.button}
+        onPress={recording ? stopRecording : startRecording}
+      >
+        <Text style={styles.buttonText}>
+          {recording ? 'Stop Recording' : 'Start Recording'}
+        </Text>
       </TouchableOpacity>
-      
+
       <FlatList
         data={recordings}
         renderItem={renderItem}
@@ -140,7 +155,7 @@ export default function App() {
         contentContainerStyle={styles.listContainer}
       />
       <View>
-      <IconButton icon="location-exit" onPress={handleSignOut}/>
+        <IconButton icon="location-exit" onPress={handleSignOut} />
       </View>
     </View>
   );
